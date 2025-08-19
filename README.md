@@ -43,8 +43,7 @@ The project focuses on **uninformed (blind) search**:
 
 ## 📂 File Structure
 ├── main.py # Game loop & rendering
+
 ├── maze.py # Maze generation & sliding movement
+
 ├── search.py # BFS & DFS implementations
-├── assets/ # Images (player, portal, etc.)
-├── pic1.png # (Optional) screenshot for README
-├── pic2.png # (Optional) screenshot for README
