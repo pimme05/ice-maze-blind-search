@@ -1,3 +1,4 @@
+import json
 from collections import deque
 import pygame
 import sys
@@ -33,32 +34,91 @@ HOLOGRAM_CYAN = (0, 255, 255)
 KEY_GOLD = (255, 215, 0)
 
 class Maze:
-    """Maze class with single level and collectible key"""
-    
     def __init__(self):
         self.key_collected = False
-        self.load_level()
-        
-    def load_level(self):
-        """Load the single maze layout"""
-        self.key_collected = False
-        
-        # Single level: Hoth Landing Site
-        self.grid = [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
-            [1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-            [1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        self.current_level = 0
+        self.levels = [
+            # Level 1 (original)
+            {
+                "grid": [
+                    [1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,0,1,0,1,0,1,0,1,0,0,1],
+                    [1,0,1,0,1,0,1,0,1,1,0,1],
+                    [1,0,0,0,0,0,1,0,0,1,0,1],
+                    [1,1,1,1,1,0,1,1,0,1,0,1],
+                    [1,0,0,0,1,1,0,0,0,1,0,1],
+                    [1,0,1,0,1,0,0,0,0,0,0,1],
+                    [1,0,1,0,0,0,1,0,1,0,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1]
+                ],
+                "start": (1, 7),
+                "goal": (10, 1),
+                "key": (5, 6)
+                    
+            },
+            # Level 2 (solvable, tested)
+            {
+                "grid": [
+                    [1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,0,0,0,1,0,0,0,1,0,0,1],
+                    [1,0,1,0,1,0,1,0,1,0,1,1],
+                    [1,0,1,0,0,0,1,0,0,0,0,1],
+                    [1,0,1,1,1,0,1,1,1,1,0,1],
+                    [1,0,0,0,1,0,0,0,0,1,0,1],
+                    [1,1,1,0,1,1,1,1,0,1,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1]
+                ],
+                "start": (1, 1),
+                "goal": (10, 7),
+                "key": (5, 5)
+                    
+            },
+            # Level 3 (solvable, tested)
+            {
+                "grid": [
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+                    [1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+                ],
+                "start": (1, 1),
+                "goal": (10, 7),
+                "key": (5, 3)
+                    
+            }
         ]
-        self.start_pos = (1, 1)
-        self.goal_pos = (10, 7)
-        self.key_pos = (5, 3)
+        
+        self.load_level()
+    def load_level(self):
+        """Load the current maze layout"""
+        self.key_collected = False
+        level = self.levels[self.current_level]
+        self.grid = level["grid"]
+        self.start_pos = level["start"]
+        self.goal_pos = level["goal"]
+        self.key_pos = level["key"]
         self.terrain_type = "ice"
+
+    def next_level(self):
+        if self.current_level < len(self.levels) - 1:
+            self.current_level += 1
+            self.load_level()
+            return True
+        else:
+            # Loop back to level 1
+            self.current_level = 0
+            self.load_level()
+            return True
+
+    def reset_to_first_level(self):
+        self.current_level = 0
+        self.load_level()
     
     def is_wall(self, x, y):
         """Check if position contains an ice wall or obstacle"""
@@ -228,10 +288,33 @@ class SearchAlgorithm:
         return False
 
 class StarWarsIceMazeGame:
+    SAVE_FILE = "savegame.json"
+    def save_progress(self):
+        data = {
+            "level": self.maze.current_level,
+            "best_time": getattr(self, "best_time", None)
+        }
+        with open(self.SAVE_FILE, "w") as f:
+            json.dump(data, f)
+
+    def load_progress(self):
+        if os.path.exists(self.SAVE_FILE):
+            with open(self.SAVE_FILE, "r") as f:
+                data = json.load(f)
+                self.maze.current_level = data.get("level", 0)
+                self.maze.load_level()
+                self.best_time = data.get("best_time", None)
+        else:
+            self.best_time = None
+
+
     def __init__(self):
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption("Star Wars: Hoth Ice Maze - Collect Key & Reach Base")
         self.clock = pygame.time.Clock()
+        self.move_count = 0
+        self.start_time = time.time()
+        self.end_time = None
         
         # Fonts
         try:
@@ -247,6 +330,8 @@ class StarWarsIceMazeGame:
         self.images = self.load_images()
         
         self.maze = Maze()
+        self.load_progress() 
+
         self.search = SearchAlgorithm(self.maze)
         
         self.current_algorithm = None
@@ -318,10 +403,16 @@ class StarWarsIceMazeGame:
                     if event.key == pygame.K_r or event.key == pygame.K_SPACE:
                         self.start_new_game()
                     elif event.key == pygame.K_m:
-                        self.toggle_mode()  # Just toggle mode, don't reset
+                        self.toggle_mode()
                     elif event.key == pygame.K_ESCAPE:
                         self.show_start_screen = True
                         self.reset_game()
+                    elif event.key == pygame.K_n:
+                        if self.maze.next_level():
+                            self.reset_game()
+                            print("Next level!")
+                        else:
+                            print("All levels complete!")
                     return True
                 
                 # In-game controls
@@ -339,6 +430,7 @@ class StarWarsIceMazeGame:
                     
                     if new_pos:
                         self.player_pos = new_pos
+                        self.move_count += 1
                         
                         # Check for key collection
                         if self.maze.collect_key(self.player_pos):
@@ -347,7 +439,11 @@ class StarWarsIceMazeGame:
                         # Check for game completion
                         if self.maze.can_exit(self.player_pos):
                             self.game_completed = True
-                            print("Mission Complete!")
+                            self.end_time = time.time()
+                            elapsed = int(self.end_time - self.start_time)
+                            if not hasattr(self, "best_time") or self.best_time is None or elapsed < self.best_time:
+                                self.best_time = elapsed
+                                self.save_progress()
                 
                 # Algorithm controls (available in both modes)
                 if event.key == pygame.K_b and not self.animating:
@@ -367,6 +463,13 @@ class StarWarsIceMazeGame:
                 elif event.key == pygame.K_ESCAPE:
                     self.show_start_screen = True
                     self.reset_game()
+                elif event.key == pygame.K_n:
+                    if self.maze.next_level():
+                        self.reset_game()
+                        self.save_progress()  # <-- Add this line
+                        print("Next level!")
+                    else:
+                        print("All levels complete!")
         
         return True
     
@@ -375,6 +478,7 @@ class StarWarsIceMazeGame:
         self.reset_game()
         self.show_start_screen = True
         print("Starting new game...")
+        self.save_progress()
     
     def reset_game(self):
         """Reset the game state"""
@@ -386,6 +490,10 @@ class StarWarsIceMazeGame:
         self.animating = False
         self.solution_found = False
         self.game_completed = False
+        self.move_count = 0
+        self.start_time = time.time()
+        self.end_time = None
+        #self.load_progress()
     
     def toggle_mode(self):
         """Toggle between manual and AI mode with visual feedback"""
@@ -688,6 +796,8 @@ class StarWarsIceMazeGame:
             option_text = self.console_font.render(option, True, HOLOGRAM_CYAN)
             option_rect = option_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + i * 30))
             self.screen.blit(option_text, option_rect)
+            next_level_text = self.console_font.render("N - Next Level", True, HOLOGRAM_CYAN)
+            self.screen.blit(next_level_text, (WINDOW_WIDTH // 2 - 80, WINDOW_HEIGHT // 2 + 100))
     
     def draw_ui(self):
         """Simple UI for single level game"""
@@ -702,6 +812,10 @@ class StarWarsIceMazeGame:
         # Title
         title = self.title_font.render("HOTH ICE MAZE", True, HOLOGRAM_CYAN)
         self.screen.blit(title, (ui_x, ui_y))
+
+        # Show current level number just below the title
+        level_text = self.console_font.render(f"Level: {self.maze.current_level + 1}", True, JEDI_GREEN)
+        self.screen.blit(level_text, (ui_x + 180, ui_y + 5))
         
         mission = self.console_font.render("ESCAPE TO ECHO BASE", True, CONSOLE_GREEN)
         self.screen.blit(mission, (ui_x, ui_y + 35))
@@ -709,7 +823,7 @@ class StarWarsIceMazeGame:
         ui_y += 70
         
         # Current mode indicator with toggle button
-        mode_bg = pygame.Rect(ui_x - 5, ui_y - 5, 200, 35)
+        mode_bg = pygame.Rect(ui_x - 5, ui_y - 5, 240, 35)
         mode_color = JEDI_GREEN if self.manual_mode else EMPIRE_RED
         pygame.draw.rect(self.screen, mode_color, mode_bg)
         pygame.draw.rect(self.screen, HOTH_WHITE, mode_bg, 2)
@@ -725,6 +839,14 @@ class StarWarsIceMazeGame:
             f"KEY: {'COLLECTED' if self.maze.key_collected else 'FIND THE GOLDEN KEY'}",
             "",
         ]
+        elapsed = int((self.end_time or time.time()) - self.start_time)
+        score_lines = [
+            f"Moves: {self.move_count}",
+            f"Time: {elapsed}s"
+        ]
+        for i, line in enumerate(score_lines):
+            text = self.console_font.render(line, True, HOLOGRAM_CYAN)
+            self.screen.blit(text, (ui_x, ui_y + 250 + i * 22))
         
         if self.manual_mode:
             briefing.extend([
@@ -753,6 +875,10 @@ class StarWarsIceMazeGame:
                 f"SECTORS: {len(self.search.explored)}",
                 f"STATUS: {'ROUTE FOUND' if self.solution_found else 'SEARCHING...'}",
             ])
+
+        if hasattr(self, "best_time") and self.best_time:
+            best = self.console_font.render(f"Best Time: {self.best_time}s", True, JEDI_GREEN)
+            self.screen.blit(best, (ui_x, ui_y + 230))
         
         # Draw briefing
         for i, line in enumerate(briefing):
@@ -783,14 +909,18 @@ class StarWarsIceMazeGame:
         
         # Key collection indicator
         if not self.maze.key_collected:
-            key_indicator_y = ui_y + len(briefing) * 22 + 80
+            # Move the warning lower in AI mode
+            if not self.manual_mode:
+                key_indicator_y = ui_y + len(briefing) * 22 + 120  # Lower for AI mode
+            else:
+                key_indicator_y = ui_y + len(briefing) * 22 + 80   # Default for Human mode
             key_text = "⚠ FIND THE KEY FIRST!"
             key_surface = self.console_font.render(key_text, True, KEY_GOLD)
             
             alpha = int(128 + 127 * math.sin(math.radians(self.key_glow * 2)))
             key_surface.set_alpha(alpha)
             self.screen.blit(key_surface, (ui_x, key_indicator_y))
-        
+
         # Scan lines effect
         for i in range(0, WINDOW_HEIGHT, 4):
             alpha = 20 if (i + self.scan_lines) % 8 < 4 else 10
