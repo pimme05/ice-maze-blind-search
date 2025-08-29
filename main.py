@@ -9,7 +9,9 @@ import random
 # Initialize Pygame
 pygame.init()
 
-# Constants
+# ---------------------------
+# Constants / Colors
+# ---------------------------
 GRID_WIDTH = 12
 GRID_HEIGHT = 9
 CELL_SIZE = 60
@@ -17,7 +19,6 @@ WINDOW_WIDTH = GRID_WIDTH * CELL_SIZE + 350
 WINDOW_HEIGHT = GRID_HEIGHT * CELL_SIZE + 100
 FPS = 60
 
-# Star Wars Color Scheme
 SPACE_BLACK = (10, 10, 20)
 ICE_BLUE = (173, 216, 255)
 WALL_GRAY = (60, 70, 85)
@@ -32,799 +33,733 @@ CONSOLE_GREEN = (0, 255, 127)
 HOLOGRAM_CYAN = (0, 255, 255)
 KEY_GOLD = (255, 215, 0)
 
+# ---------------------------
+# Maze (MULTI-LEVEL)
+# ---------------------------
 class Maze:
-    """Maze class with single level and collectible key"""
-    
-    def __init__(self):
+    """Maze with 3 levels and a collectible key each level"""
+    def __init__(self, level=1):
+        self.level = level
         self.key_collected = False
-        self.load_level()
-        
-    def load_level(self):
-        """Load the single maze layout"""
+        self.key_pos = None
+        self.enemy_spawns = []
+        self.load_level(level)
+
+    def load_level(self, level):
+        self.level = level
         self.key_collected = False
-        
-        # Single level: Hoth Landing Site
-        self.grid = [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
-            [1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-            [1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        ]
-        self.start_pos = (1, 1)
-        self.goal_pos = (10, 7)
-        self.key_pos = (5, 3)
+        self.enemy_spawns = []
+
+        if level == 1:
+            self.grid = [
+                [1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,1,0,0,0,0,0,0,1],
+                [1,0,1,0,1,0,1,1,1,0,0,1],
+                [1,0,0,0,0,0,0,0,1,0,0,1],
+                [1,1,1,0,1,1,0,0,0,0,1,1],
+                [1,0,0,0,0,0,0,1,0,0,0,1],
+                [1,0,1,1,0,1,0,1,0,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1]
+            ]
+            self.start_pos = (1, 1)
+            self.goal_pos  = (10, 7)
+            self.key_pos   = (5, 3)
+            self.enemy_spawns = []  # no enemies on level 1
+
+        elif level == 2:
+            # Harder than level 1, solvable; side trip to key
+            self.grid = [
+                [1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,1,0,0,0,1,0,0,1],
+                [1,0,1,0,1,0,1,0,1,0,0,1],
+                [1,0,1,0,0,0,1,0,0,1,0,1],
+                [1,0,1,1,1,0,1,1,0,1,0,1],
+                [1,0,0,0,0,0,0,1,0,0,0,1],
+                [1,1,0,1,1,1,0,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1]
+            ]
+            self.start_pos = (1, 1)
+            self.goal_pos  = (10, 7)
+            self.key_pos   = (9, 2)
+            # (x, y, dx, dy) patrols that move 1 tile a step, bouncing at walls
+            self.enemy_spawns = [
+                (2, 7, 1, 0),   # bottom corridor
+                (8, 3, 0, 1),   # mid-right vertical shaft
+            ]
+
+        else:  # level 3 (hardest)
+            self.grid = [
+                [1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,1,0,0,0,1,1,0,0,1],
+                [1,0,1,0,0,1,0,1,1,0,1,1],
+                [1,0,1,0,0,0,0,0,1,0,0,1],
+                [1,0,0,0,1,1,1,0,1,1,0,1],
+                [1,1,1,0,0,0,1,0,0,1,0,1],
+                [1,0,0,0,1,0,1,1,0,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,0,1,1,1,1,1,1,1,1]
+            ]
+            self.start_pos = (1, 7)
+            self.goal_pos  = (10, 1)
+            self.key_pos   = (4, 1)
+            self.enemy_spawns = [
+                (3, 3, 1, 0),
+                (9, 6, 0, -1),
+                (6, 5, -1, 0),
+            ]
+
         self.terrain_type = "ice"
-    
+
     def is_wall(self, x, y):
-        """Check if position contains an ice wall or obstacle"""
         if 0 <= y < len(self.grid) and 0 <= x < len(self.grid[0]):
             return self.grid[y][x] == 1
         return True
-    
-    def is_valid_pos(self, x, y):
-        """Check if position is valid for movement"""
-        return (0 <= y < len(self.grid) and 
-                0 <= x < len(self.grid[0]) and 
-                not self.is_wall(x, y))
-    
+
     def slide_move(self, start_x, start_y, direction):
-        """Simulate sliding movement on ice"""
         x, y = start_x, start_y
-        dx, dy = 0, 0
-        
-        direction_map = {
-            'up': (0, -1),
-            'down': (0, 1),
-            'left': (-1, 0),
-            'right': (1, 0)
-        }
-        
-        if direction in direction_map:
-            dx, dy = direction_map[direction]
-        else:
+        direction_map = {'up':(0,-1),'down':(0,1),'left':(-1,0),'right':(1,0)}
+        if direction not in direction_map:
             return None
-        
-        moves_made = 0
+        dx, dy = direction_map[direction]
+        moves = 0
         while True:
-            next_x, next_y = x + dx, y + dy
-            
-            if self.is_wall(next_x, next_y):
-                break
-                
-            x, y = next_x, next_y
-            moves_made += 1
-            
-            if moves_made > 20:
-                break
-        
+            nx, ny = x + dx, y + dy
+            if self.is_wall(nx, ny): break
+            x, y = nx, ny
+            moves += 1
+            if moves > 20: break
         return (x, y) if (x, y) != (start_x, start_y) else None
-    
+
     def collect_key(self, player_pos):
-        """Check if player collected the key"""
         if not self.key_collected and player_pos == self.key_pos:
             self.key_collected = True
             return True
         return False
-    
+
     def can_exit(self, player_pos):
-        """Check if player can exit (must have key and be at goal)"""
         return self.key_collected and player_pos == self.goal_pos
 
+    def get_level_name(self):
+        return {1:"Hoth Landing Site", 2:"Ice Caverns", 3:"Echo Base Approach"}[self.level]
+
+# ---------------------------
+# Blind search (BFS/DFS)
+# ---------------------------
 class SearchAlgorithm:
-    """Search algorithms that consider key collection"""
-    
     def __init__(self, maze):
         self.maze = maze
-        self.explored = set()
-        self.path = []
-        self.search_order = []
+        self.explored = set()        # for UI coloring only (positions)
+        self.path = []               # final path (list of positions)
+        self.search_order = []       # order positions were expanded (for viz)
         self.algorithm_used = None
         self.nodes_expanded = 0
-    
+
     def reset(self):
-        """Reset all search data for a new search operation"""
         self.explored.clear()
         self.path.clear()
         self.search_order.clear()
         self.algorithm_used = None
         self.nodes_expanded = 0
-    
+
     def get_neighbors(self, pos):
-        """Get all reachable positions from current position"""
         x, y = pos
         neighbors = []
-        directions = ['up', 'down', 'left', 'right']
-        
-        for direction in directions:
-            new_pos = self.maze.slide_move(x, y, direction)
-            if new_pos and new_pos not in self.explored:
-                neighbors.append(new_pos)
-        
+        for d in ('up', 'down', 'left', 'right'):
+            np = self.maze.slide_move(x, y, d)
+            if np:
+                neighbors.append(np)
         return neighbors
-    
-    def bfs_with_key(self, start, goal, key_pos):
-        """BFS that must collect key before reaching goal"""
+
+    def bfs_with_key(self, start, goal, key_pos, has_key_start=False):
         self.reset()
         self.algorithm_used = "BFS with Key Collection"
-    
-        # State: (position, has_key, path)
-        queue = deque([(start, False, [start])])
-        # Explored: set of (position, has_key) tuples
-        explored_states = set()
-        explored_states.add((start, False))
-        
-        while queue:
-            current_pos, has_key, path = queue.popleft()
-            self.search_order.append(current_pos)
+
+        q = deque([(start, has_key_start, [start])])
+        seen = {(start, has_key_start)}
+
+        while q:
+            cur, has_key, path = q.popleft()
+            self.search_order.append(cur)
             self.nodes_expanded += 1
-            
-            # ADD THIS LINE: Update the main explored set for UI display
-            self.explored.add(current_pos)
-            
-            # Collect key if we're at key position
-            if current_pos == key_pos:
+            self.explored.add(cur)
+
+            if cur == key_pos:
                 has_key = True
-            
-            # Check if we've reached goal with key
-            if current_pos == goal and has_key:
+            if cur == goal and has_key:
                 self.path = path
                 return True
-            
-            # Explore neighbors
-            for neighbor in self.get_neighbors(current_pos):
-                state = (neighbor, has_key)
-                if state not in explored_states:
-                    explored_states.add(state)
-                    new_path = path + [neighbor]
-                    queue.append((neighbor, has_key, new_path))
-        
+
+            for nb in self.get_neighbors(cur):
+                if nb == goal and not has_key:
+                    continue
+                st = (nb, has_key)
+                if st not in seen:
+                    seen.add(st)
+                    q.append((nb, has_key, path + [nb]))
         return False
 
-    def dfs_with_key(self, start, goal, key_pos):
-        """DFS that must collect key before reaching goal"""
+    def dfs_with_key(self, start, goal, key_pos, has_key_start=False):
         self.reset()
         self.algorithm_used = "DFS with Key Collection"
-        
-        # State: (position, has_key, path)
-        stack = [(start, False, [start])]
-        explored_states = set()
-        
+
+        stack = [(start, has_key_start, [start])]
+        seen = set()
+
         while stack:
-            current_pos, has_key, path = stack.pop()
-            
-            state = (current_pos, has_key)
-            if state in explored_states:
+            cur, has_key, path = stack.pop()
+            st = (cur, has_key)
+            if st in seen:
                 continue
-            
-            explored_states.add(state)
-            self.search_order.append(current_pos)
+            seen.add(st)
+
+            self.search_order.append(cur)
             self.nodes_expanded += 1
-            
-            # ADD THIS LINE: Update the main explored set for UI display
-            self.explored.add(current_pos)
-            
-            # Collect key if we're at key position
-            if current_pos == key_pos:
+            self.explored.add(cur)
+
+            if cur == key_pos:
                 has_key = True
-            
-            # Check if we've reached goal with key
-            if current_pos == goal and has_key:
+            if cur == goal and has_key:
                 self.path = path
                 return True
-            
-            # Add neighbors to stack
-            neighbors = self.get_neighbors(current_pos)
-            for neighbor in reversed(neighbors):
-                new_state = (neighbor, has_key)
-                if new_state not in explored_states:
-                    new_path = path + [neighbor]
-                    stack.append((neighbor, has_key, new_path))
-        
+
+            for nb in reversed(self.get_neighbors(cur)):
+                if nb == goal and not has_key:
+                    continue
+                nst = (nb, has_key)
+                if nst not in seen:
+                    stack.append((nb, has_key, path + [nb]))
         return False
 
+# ---------------------------
+# Game
+# ---------------------------
 class StarWarsIceMazeGame:
     def __init__(self):
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-        pygame.display.set_caption("Star Wars: Hoth Ice Maze - Collect Key & Reach Base")
+        pygame.display.set_caption("Star Wars: Hoth Ice Maze - Multi-Level Mission")
         self.clock = pygame.time.Clock()
-        
+
         # Fonts
-        try:
-            self.font = pygame.font.Font(None, 24)
-            self.title_font = pygame.font.Font(None, 32)
-            self.console_font = pygame.font.Font(None, 20)
-        except:
-            self.font = pygame.font.Font(None, 24)
-            self.title_font = pygame.font.Font(None, 32)
-            self.console_font = pygame.font.Font(None, 20)
-        
-        # Load images
+        self.font = pygame.font.Font(None, 24)
+        self.title_font = pygame.font.Font(None, 32)
+        self.console_font = pygame.font.Font(None, 20)
+
+        # Level state
+        self.current_level = 1
+        self.max_level = 3
+
+        # Images
         self.images = self.load_images()
-        
-        self.maze = Maze()
+
+        # World + search
+        self.maze = Maze(self.current_level)
         self.search = SearchAlgorithm(self.maze)
-        
+
+        # Game state
+        self.player_pos = self.maze.start_pos
+        self.manual_mode = True
         self.current_algorithm = None
         self.visualization_step = 0
         self.animating = False
         self.animation_speed = 8
         self.last_step_time = 0
-        
-        self.player_pos = self.maze.start_pos
-        self.manual_mode = True
         self.solution_found = False
-        
-        # Animation effects
+        self.game_completed = False
+        self.show_start_screen = True
+
+        # Enemies
+        self.enemies = []                 # dicts: {'x','y','dx','dy'}
+        self.enemy_step_interval = 0.35
+        self._enemy_last_step = 0.0
+        self.game_over = False
+        self._load_enemies()
+
+        # Autopilot (optional after AI finds path)
+        self.autopilot = False
+        self.autopath = []
+        self.auto_index = 0
+        self.autopilot_speed = 0.15
+        self._auto_last_step = 0.0
+
+        # Visual effects
         self.glow_effect = 0
         self.scan_lines = 0
         self.key_glow = 0
-        
-        # Game state
-        self.game_completed = False
-        self.show_start_screen = True
-    
+
+    # ---------- assets ----------
     def load_images(self):
-        """Load character and object images with fallback to drawn graphics"""
         images = {}
-        image_files = {
-            'player': 'pic1.png',
-            'base': 'pic2.png',
-            'key': 'key.png',
-        }
-        
-        for name, filename in image_files.items():
+        for name, filename in {'player':'pic1.png','base':'pic2.png','key':'key.png'}.items():
             try:
                 if os.path.exists(filename):
-                    original_image = pygame.image.load(filename).convert_alpha()
-                    scaled_image = pygame.transform.scale(original_image, (CELL_SIZE - 10, CELL_SIZE - 10))
-                    images[name] = scaled_image
-                    print(f"✓ Loaded {filename} for {name}")
+                    img = pygame.image.load(filename).convert_alpha()
+                    images[name] = pygame.transform.scale(img, (CELL_SIZE-10, CELL_SIZE-10))
                 else:
                     images[name] = None
-                    print(f"⚠ File {filename} not found, using drawn graphics for {name}")
-            except Exception as e:
+            except Exception:
                 images[name] = None
-                print(f"⚠ Error loading {filename}: {e}")
-        
         return images
-    
-    def handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return False
-            
-            elif event.type == pygame.KEYDOWN:
-                # Start screen controls
-                if self.show_start_screen:
-                    if event.key == pygame.K_1:
-                        self.manual_mode = True
-                        self.show_start_screen = False
-                        print("Human mode selected!")
-                    elif event.key == pygame.K_2:
-                        self.manual_mode = False
-                        self.show_start_screen = False
-                        print("AI mode selected!")
-                    elif event.key == pygame.K_ESCAPE:
-                        return False
-                    return True
-                
-                # Game completion screen
-                if self.game_completed:
-                    if event.key == pygame.K_r or event.key == pygame.K_SPACE:
-                        self.start_new_game()
-                    elif event.key == pygame.K_m:
-                        self.toggle_mode()  # Just toggle mode, don't reset
-                    elif event.key == pygame.K_ESCAPE:
-                        self.show_start_screen = True
-                        self.reset_game()
-                    return True
-                
-                # In-game controls
-                if self.manual_mode and not self.animating:
-                    # Manual player movement
-                    new_pos = None
-                    if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        new_pos = self.maze.slide_move(*self.player_pos, 'up')
-                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        new_pos = self.maze.slide_move(*self.player_pos, 'down')
-                    elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                        new_pos = self.maze.slide_move(*self.player_pos, 'left')
-                    elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                        new_pos = self.maze.slide_move(*self.player_pos, 'right')
-                    
-                    if new_pos:
-                        self.player_pos = new_pos
-                        
-                        # Check for key collection
-                        if self.maze.collect_key(self.player_pos):
-                            print("Key collected!")
-                        
-                        # Check for game completion
-                        if self.maze.can_exit(self.player_pos):
-                            self.game_completed = True
-                            print("Mission Complete!")
-                
-                # Algorithm controls (available in both modes)
-                if event.key == pygame.K_b and not self.animating:
-                    if not self.manual_mode:
-                        self.start_bfs()
-                elif event.key == pygame.K_d and not self.animating:
-                    if not self.manual_mode:
-                        self.start_dfs()
-                elif event.key == pygame.K_r:
-                    self.start_new_game()
-                elif event.key == pygame.K_m:
-                    self.toggle_mode()  # Toggle mode in-game
-                elif event.key == pygame.K_t:
-                    self.show_possible_moves()
-                elif event.key == pygame.K_h:
-                    self.show_hint_path()
-                elif event.key == pygame.K_ESCAPE:
-                    self.show_start_screen = True
-                    self.reset_game()
-        
-        return True
-    
-    def start_new_game(self):
-        """Start a completely new game"""
-        self.reset_game()
-        self.show_start_screen = True
-        print("Starting new game...")
-    
-    def reset_game(self):
-        """Reset the game state"""
-        self.maze.key_collected = False
+
+    # ---------- Enemies ----------
+    def _load_enemies(self):
+        self.enemies = []
+        for sx, sy, dx, dy in getattr(self.maze, "enemy_spawns", []):
+            self.enemies.append({"x": sx, "y": sy, "dx": dx, "dy": dy})
+        self._enemy_last_step = 0.0
+        self.game_over = False
+
+    def _step_enemies(self):
+        # freeze enemies during AI scanning or autopilot
+        if not self.enemies or self.game_completed or self.game_over or not self.manual_mode or self.autopilot:
+            return
+        now = time.time()
+        if now - self._enemy_last_step < self.enemy_step_interval:
+            return
+        self._enemy_last_step = now
+
+        for e in self.enemies:
+            nx, ny = e["x"] + e["dx"], e["y"] + e["dy"]
+
+            if self.maze.is_wall(nx, ny):
+                e["dx"] *= -1
+                e["dy"] *= -1
+                nx, ny = e["x"] + e["dx"], e["y"] + e["dy"]
+                if self.maze.is_wall(nx, ny):
+                    for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
+                        tx, ty = e["x"] + dx, e["y"] + dy
+                        if not self.maze.is_wall(tx, ty):
+                            e["dx"], e["dy"] = dx, dy
+                            nx, ny = tx, ty
+                            break
+                    else:
+                        continue  # stuck
+
+            e["x"], e["y"] = nx, ny
+
+            # collision with player (manual only)
+            if self.manual_mode and (e["x"], e["y"]) == self.player_pos:
+                self._trigger_game_over()
+
+    def _trigger_game_over(self):
+        self.game_over = True
+        self.animating = False
+        self.autopilot = False
+        print("❌ Game Over: a patrol caught you!")
+
+    # ---------- Level helpers ----------
+    def load_new_level(self):
+        self.maze = Maze(self.current_level)
+        self.search = SearchAlgorithm(self.maze)
         self.player_pos = self.maze.start_pos
+        self.reset_search_ui_flags()
+        self._load_enemies()
+
+    def complete_level(self):
+        if self.current_level < self.max_level:
+            print(f"Level {self.current_level} complete! Moving to {self.current_level+1}.")
+            self.current_level += 1
+            self.load_new_level()
+        else:
+            self.game_completed = True
+            print("All levels completed! You've reached Echo Base!")
+
+    def start_new_game(self):
+        self.current_level = 1
+        self.load_new_level()
+        self.show_start_screen = True
+        self.game_completed = False
+        print("Starting new game at Level 1...")
+
+    def reset_search_ui_flags(self):
         self.search.reset()
         self.current_algorithm = None
         self.visualization_step = 0
         self.animating = False
+        self.manual_mode = True
         self.solution_found = False
-        self.game_completed = False
-    
-    def toggle_mode(self):
-        """Toggle between manual and AI mode with visual feedback"""
-        self.manual_mode = not self.manual_mode
-        if self.manual_mode:
-            self.animating = False
-            self.search.reset()  # Clear any AI search data
-            print("Switched to HUMAN mode - Take control of your AT-AT!")
-        else:
-            print("Switched to AI mode - Use B for BFS or D for DFS algorithms!")
-    
+        self.game_over = False
+        self.autopilot = False
+        self.autopath = []
+        self.auto_index = 0
+
+    # ---------- Input ----------
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+
+            if event.type == pygame.KEYDOWN:
+
+                # --- Start screen ---
+                if self.show_start_screen:
+                    if event.key == pygame.K_1:
+                        self.manual_mode = True
+                        self.show_start_screen = False
+                    elif event.key == pygame.K_2:
+                        self.manual_mode = False
+                        self.show_start_screen = False
+                    elif event.key == pygame.K_ESCAPE:
+                        return False
+                    return True
+
+                # --- Game over screen ---
+                if self.game_over:
+                    if event.key in (pygame.K_r, pygame.K_SPACE):
+                        self.load_new_level()  # restart same level
+                    elif event.key == pygame.K_ESCAPE:
+                        self.start_new_game()
+                    return True
+
+                # --- End screen (after level 3) ---
+                if self.game_completed:
+                    if event.key in (pygame.K_r, pygame.K_SPACE):
+                        self.start_new_game()
+                    elif event.key == pygame.K_ESCAPE:
+                        self.start_new_game()
+                    return True
+
+                # --- In-game controls (Human) ---
+                if self.manual_mode and not self.animating and not self.autopilot:
+                    new_pos = None
+                    if event.key in (pygame.K_UP, pygame.K_w):
+                        new_pos = self.maze.slide_move(*self.player_pos, 'up')
+                    elif event.key in (pygame.K_DOWN, pygame.K_s):
+                        new_pos = self.maze.slide_move(*self.player_pos, 'down')
+                    elif event.key in (pygame.K_LEFT, pygame.K_a):
+                        new_pos = self.maze.slide_move(*self.player_pos, 'left')
+                    elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                        new_pos = self.maze.slide_move(*self.player_pos, 'right')
+
+                    if new_pos:
+                        self.player_pos = new_pos
+
+                        # collide with enemy after moving
+                        for e in self.enemies:
+                            if (e["x"], e["y"]) == self.player_pos:
+                                self._trigger_game_over()
+                                break
+                        if self.game_over:
+                            return True
+
+                        if self.maze.collect_key(self.player_pos):
+                            print("Key collected!")
+                        if self.maze.can_exit(self.player_pos):
+                            self.complete_level()
+
+                # --- Algorithm controls ---
+                if event.key == pygame.K_b and not self.animating and not self.manual_mode:
+                    self.start_bfs()
+                elif event.key == pygame.K_d and not self.animating and not self.manual_mode:
+                    self.start_dfs()
+                elif event.key == pygame.K_a and not self.manual_mode and self.solution_found and not self.autopilot:
+                    # start autopilot along found path
+                    if self.search.path:
+                        self.autopilot = True
+                        self.autopath = list(self.search.path)
+                        self.auto_index = 0
+                        self.player_pos = self.autopath[0]  # place player at start of path
+                        print("Autopilot engaged.")
+                elif event.key == pygame.K_r:
+                    self.load_new_level()
+                elif event.key == pygame.K_m:
+                    # toggle Human/AI (cancels autopilot/scan animation)
+                    self.manual_mode = not self.manual_mode
+                    self.animating = False
+                    self.autopilot = False
+                    if self.manual_mode:
+                        self.search.reset()
+                elif event.key == pygame.K_ESCAPE:
+                    self.start_new_game()
+
+        return True
+
+    # ---------- Search triggers ----------
     def start_bfs(self):
-        """Start BFS with key collection"""
         self.current_algorithm = "REBEL SCANNER (BFS)"
         self.solution_found = self.search.bfs_with_key(
-            self.maze.start_pos, self.maze.goal_pos, self.maze.key_pos)
+            start=self.player_pos,                      # start from where you are
+            goal=self.maze.goal_pos,
+            key_pos=self.maze.key_pos,
+            has_key_start=self.maze.key_collected
+        )
         self.visualization_step = 0
         self.animating = True
         self.manual_mode = False
-    
+
     def start_dfs(self):
-        """Start DFS with key collection"""
         self.current_algorithm = "EMPIRE PROBE (DFS)"
         self.solution_found = self.search.dfs_with_key(
-            self.maze.start_pos, self.maze.goal_pos, self.maze.key_pos)
+            start=self.player_pos,
+            goal=self.maze.goal_pos,
+            key_pos=self.maze.key_pos,
+            has_key_start=self.maze.key_collected
+        )
         self.visualization_step = 0
         self.animating = True
         self.manual_mode = False
-    
-    def show_possible_moves(self):
-        """Debug function to show all possible moves from current position"""
-        if self.manual_mode:
-            print(f"\n=== POSSIBLE MOVES FROM {self.player_pos} ===")
-            directions = ['up', 'down', 'left', 'right']
-            for direction in directions:
-                new_pos = self.maze.slide_move(*self.player_pos, direction)
-                if new_pos:
-                    print(f"{direction.upper()}: {self.player_pos} → {new_pos}")
-                else:
-                    print(f"{direction.upper()}: No movement possible")
-            print(f"Key position: {self.maze.key_pos}")
-            print(f"Goal position: {self.maze.goal_pos}")
-            print(f"Key collected: {self.maze.key_collected}")
-            print("=" * 50)
-    
-    def show_hint_path(self):
-        """Show a hint about how to solve the level"""
-        print(f"\n=== HOTH MAZE SOLUTION HINT ===")
-        print("This maze has multiple solution paths!")
-        print("Try different combinations of moves to collect the key first,")
-        print("then navigate to the goal.")
-        print(f"Key position: {self.maze.key_pos}")
-        print(f"Goal position: {self.maze.goal_pos}")
-        print("Remember: You slide until you hit a wall!")
-        print("=" * 50)
-    
+
+    # ---------- Update / Draw ----------
     def update(self):
         current_time = time.time()
-        
-        # Update animation effects
         self.glow_effect = (self.glow_effect + 3) % 360
         self.scan_lines = (self.scan_lines + 2) % WINDOW_HEIGHT
         self.key_glow = (self.key_glow + 5) % 360
-        
+
+        # animate search expansion
         if self.animating and current_time - self.last_step_time > (1.0 / self.animation_speed):
             if self.visualization_step < len(self.search.search_order):
                 self.visualization_step += 1
                 self.last_step_time = current_time
             else:
-                self.animating = False
-    
+                self.animating = False  # finished scanning
+
+        # Autopilot stepping
+        if self.autopilot and (current_time - self._auto_last_step) > self.autopilot_speed:
+            self._auto_last_step = current_time
+            if self.auto_index + 1 < len(self.autopath):
+                self.auto_index += 1
+                self.player_pos = self.autopath[self.auto_index]
+                # collect key/exit along the way
+                self.maze.collect_key(self.player_pos)
+                if self.maze.can_exit(self.player_pos):
+                    self.autopilot = False
+                    self.complete_level()
+            else:
+                self.autopilot = False
+
+        # step enemies on a timer (frozen in AI or autopilot)
+        self._step_enemies()
+
     def draw_key(self, pos):
-        """Draw the collectible key"""
         if self.maze.key_collected:
             return
-            
         x, y = pos[0] * CELL_SIZE, pos[1] * CELL_SIZE
-        center_x, center_y = x + CELL_SIZE // 2, y + CELL_SIZE // 2
-        
-        # Try to use loaded key image first
+        cx, cy = x + CELL_SIZE // 2, y + CELL_SIZE // 2
         if self.images.get('key') is not None:
-            key_rect = self.images['key'].get_rect(center=(center_x, center_y))
+            key_rect = self.images['key'].get_rect(center=(cx, cy))
             self.screen.blit(self.images['key'], key_rect)
         else:
-            # Fallback to drawn key
-            glow_intensity = int(128 + 64 * math.sin(math.radians(self.key_glow)))
-            
-            # Outer glow
-            for radius in range(25, 15, -2):
-                alpha = max(0, glow_intensity - (25 - radius) * 10)
-                glow_surf = pygame.Surface((radius * 2, radius * 2))
-                glow_surf.set_alpha(alpha)
-                glow_surf.fill(KEY_GOLD)
-                glow_rect = glow_surf.get_rect(center=(center_x, center_y))
-                self.screen.blit(glow_surf, glow_rect)
-            
-            # Key body
-            pygame.draw.circle(self.screen, KEY_GOLD, (center_x, center_y), 12)
-            pygame.draw.circle(self.screen, (200, 180, 0), (center_x, center_y), 12, 2)
-            pygame.draw.circle(self.screen, SPACE_BLACK, (center_x, center_y), 4)
-            pygame.draw.rect(self.screen, KEY_GOLD, (center_x + 8, center_y - 2, 8, 4))
-    
+            glow = int(128 + 64 * math.sin(math.radians(self.key_glow)))
+            for r in range(25, 15, -2):
+                alpha = max(0, glow - (25 - r) * 10)
+                s = pygame.Surface((r * 2, r * 2))
+                s.set_alpha(alpha); s.fill(KEY_GOLD)
+                self.screen.blit(s, s.get_rect(center=(cx, cy)))
+            pygame.draw.circle(self.screen, KEY_GOLD, (cx, cy), 12)
+            pygame.draw.circle(self.screen, (200, 180, 0), (cx, cy), 12, 2)
+            pygame.draw.circle(self.screen, SPACE_BLACK, (cx, cy), 4)
+            pygame.draw.rect(self.screen, KEY_GOLD, (cx + 8, cy - 2, 8, 4))
+
     def draw_character(self, pos, char_type="rebel"):
-        """Draw Star Wars characters"""
         x, y = pos[0] * CELL_SIZE, pos[1] * CELL_SIZE
-        center_x, center_y = x + CELL_SIZE // 2, y + CELL_SIZE // 2
-        
+        cx, cy = x + CELL_SIZE // 2, y + CELL_SIZE // 2
         if char_type == "rebel":
-            # Try to use loaded player image first
-            if self.images.get('player') is not None:
-                player_rect = self.images['player'].get_rect(center=(center_x, center_y))
-                self.screen.blit(self.images['player'], player_rect)
-                
-                # Add key indicator if collected
+            if self.images.get('player'):
+                rect = self.images['player'].get_rect(center=(cx, cy))
+                self.screen.blit(self.images['player'], rect)
                 if self.maze.key_collected:
-                    key_indicator_pos = (center_x + 20, center_y - 20)
-                    pygame.draw.circle(self.screen, KEY_GOLD, key_indicator_pos, 8)
-                    pygame.draw.circle(self.screen, (200, 180, 0), key_indicator_pos, 8, 2)
-                    pygame.draw.circle(self.screen, SPACE_BLACK, key_indicator_pos, 3)
+                    kp = (cx + 20, cy - 20)
+                    pygame.draw.circle(self.screen, KEY_GOLD, kp, 8)
+                    pygame.draw.circle(self.screen, (200, 180, 0), kp, 8, 2)
+                    pygame.draw.circle(self.screen, SPACE_BLACK, kp, 3)
             else:
-                # Fallback to drawn rebel pilot
-                pygame.draw.circle(self.screen, REBEL_ORANGE, (center_x, center_y - 5), 18)
-                pygame.draw.circle(self.screen, DARK_GRAY, (center_x, center_y - 5), 18, 3)
-                pygame.draw.ellipse(self.screen, SABER_BLUE, (center_x - 12, center_y - 12, 24, 10))
-                pygame.draw.ellipse(self.screen, REBEL_ORANGE, (center_x - 10, center_y + 5, 20, 15))
-                
+                pygame.draw.circle(self.screen, REBEL_ORANGE, (cx, cy - 5), 18)
+                pygame.draw.circle(self.screen, DARK_GRAY, (cx, cy - 5), 18, 3)
+                pygame.draw.ellipse(self.screen, SABER_BLUE, (cx - 12, cy - 12, 24, 10))
+                pygame.draw.ellipse(self.screen, REBEL_ORANGE, (cx - 10, cy + 5, 20, 15))
                 if self.maze.key_collected:
-                    pygame.draw.circle(self.screen, KEY_GOLD, (center_x + 15, center_y - 15), 6)
-            
-        elif char_type == "base":
-            # Try to use loaded base image first
-            if self.images.get('base') is not None:
-                base_rect = self.images['base'].get_rect(center=(center_x, center_y))
-                self.screen.blit(self.images['base'], base_rect)
+                    pygame.draw.circle(self.screen, KEY_GOLD, (cx + 15, cy - 15), 6)
+        else:  # base
+            if self.images.get('base'):
+                rect = self.images['base'].get_rect(center=(cx, cy))
+                self.screen.blit(self.images['base'], rect)
             else:
-                # Fallback to drawn base
-                pygame.draw.polygon(self.screen, ICE_BLUE, [
-                    (center_x, center_y - 15),
-                    (center_x - 15, center_y + 10),
-                    (center_x + 15, center_y + 10)
-                ])
-                level_surf = self.console_font.render("BASE", True, HOTH_WHITE)
-                level_rect = level_surf.get_rect(center=(center_x, center_y))
-                self.screen.blit(level_surf, level_rect)
-    
+                pygame.draw.polygon(self.screen, ICE_BLUE, [(cx, cy-15),(cx-15, cy+10),(cx+15, cy+10)])
+                lvl = self.console_font.render("BASE", True, HOTH_WHITE)
+                self.screen.blit(lvl, lvl.get_rect(center=(cx, cy)))
+
+    def draw_enemy(self, x, y):
+        rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+        cx, cy = rect.center
+        pygame.draw.circle(self.screen, (180, 30, 30), (cx, cy), CELL_SIZE // 3)
+        pygame.draw.circle(self.screen, (255, 80, 80), (cx, cy), CELL_SIZE // 3, 2)
+
     def draw_grid(self):
-        """Draw the maze grid"""
-        # Space background with stars
         self.screen.fill(SPACE_BLACK)
-        
-        # Add stars
-        random.seed(42)
-        for _ in range(50):
+        random.seed(42 + self.current_level)
+        for _ in range(50 + self.current_level * 5):
             x = random.randint(0, GRID_WIDTH * CELL_SIZE)
             y = random.randint(0, GRID_HEIGHT * CELL_SIZE)
             pygame.draw.circle(self.screen, HOTH_WHITE, (x, y), 1)
-        
-        # Draw maze
+
         for y in range(len(self.maze.grid)):
             for x in range(len(self.maze.grid[0])):
-                rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-                
+                r = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 if self.maze.is_wall(x, y):
-                    pygame.draw.rect(self.screen, WALL_GRAY, rect)
-                    pygame.draw.rect(self.screen, ICE_BLUE, rect, 2)
+                    pygame.draw.rect(self.screen, WALL_GRAY, r)
+                    pygame.draw.rect(self.screen, ICE_BLUE, r, 2)
                 else:
-                    pygame.draw.rect(self.screen, HOTH_WHITE, rect)
-                    pygame.draw.rect(self.screen, ICE_BLUE, rect, 1)
-        
-        # Draw search visualization
+                    pygame.draw.rect(self.screen, HOTH_WHITE, r)
+                    pygame.draw.rect(self.screen, ICE_BLUE, r, 1)
+
+        # Search viz (expansion order)
         if not self.manual_mode and self.search.search_order:
             for i in range(min(self.visualization_step, len(self.search.search_order))):
                 pos = self.search.search_order[i]
                 color = SABER_BLUE if "BFS" in str(self.current_algorithm) else EMPIRE_RED
-                
-                glow_surf = pygame.Surface((CELL_SIZE - 10, CELL_SIZE - 10))
-                glow_surf.set_alpha(80)
-                glow_surf.fill(color)
-                self.screen.blit(glow_surf, (pos[0] * CELL_SIZE + 5, pos[1] * CELL_SIZE + 5))
-        
-        # Draw solution path
-        if not self.manual_mode and not self.animating and self.solution_found:
+                s = pygame.Surface((CELL_SIZE - 10, CELL_SIZE - 10))
+                s.set_alpha(80); s.fill(color)
+                self.screen.blit(s, (pos[0]*CELL_SIZE + 5, pos[1]*CELL_SIZE + 5))
+
+        # Solution path
+        if not self.manual_mode and not self.animating and self.solution_found and self.search.path:
             for pos in self.search.path:
-                if pos == self.maze.start_pos or pos == self.maze.goal_pos:
-                    continue
-                path_surf = pygame.Surface((CELL_SIZE - 30, CELL_SIZE - 30))
-                path_surf.set_alpha(128)
-                path_surf.fill(JEDI_GREEN)
-                self.screen.blit(path_surf, (pos[0] * CELL_SIZE + 15, pos[1] * CELL_SIZE + 15))
-    
+                if pos in (self.maze.start_pos, self.maze.goal_pos): continue
+                s = pygame.Surface((CELL_SIZE - 30, CELL_SIZE - 30))
+                s.set_alpha(128); s.fill(JEDI_GREEN)
+                self.screen.blit(s, (pos[0]*CELL_SIZE + 15, pos[1]*CELL_SIZE + 15))
+
     def draw_entities(self):
-        """Draw all game entities"""
         self.draw_key(self.maze.key_pos)
         self.draw_character(self.maze.goal_pos, "base")
-        
-        if self.manual_mode:
+        for e in self.enemies:
+            self.draw_enemy(e["x"], e["y"])
+
+        # draw player
+        if self.manual_mode or self.autopilot:
             self.draw_character(self.player_pos, "rebel")
         else:
-            self.draw_character(self.maze.start_pos, "rebel")
-    
+            # AI scan mode: keep a “ghost” at start of the computed path for clarity
+            pos = self.search.path[0] if self.search.path else self.maze.start_pos
+            self.draw_character(pos, "rebel")
+
     def draw_start_screen(self):
-        """Draw the start/mode selection screen"""
         self.screen.fill(SPACE_BLACK)
-        
-        # Add stars background
         random.seed(42)
         for _ in range(100):
-            x = random.randint(0, WINDOW_WIDTH)
-            y = random.randint(0, WINDOW_HEIGHT)
+            x = random.randint(0, WINDOW_WIDTH); y = random.randint(0, WINDOW_HEIGHT)
             pygame.draw.circle(self.screen, HOTH_WHITE, (x, y), 1)
-        
-        # Main title
-        title_font = pygame.font.Font(None, 48)
-        title = title_font.render("STAR WARS: HOTH ICE MAZE", True, HOLOGRAM_CYAN)
-        title_rect = title.get_rect(center=(WINDOW_WIDTH // 2, 100))
-        self.screen.blit(title, title_rect)
-        
-        # Subtitle
+        title = pygame.font.Font(None, 48).render("STAR WARS: HOTH ICE MAZE", True, HOLOGRAM_CYAN)
+        self.screen.blit(title, title.get_rect(center=(WINDOW_WIDTH//2, 100)))
         subtitle = self.title_font.render("Escape to Echo Base", True, CONSOLE_GREEN)
-        subtitle_rect = subtitle.get_rect(center=(WINDOW_WIDTH // 2, 140))
-        self.screen.blit(subtitle, subtitle_rect)
-        
-        # Mode selection
-        mode_title = self.title_font.render("SELECT GAME MODE:", True, REBEL_ORANGE)
-        mode_rect = mode_title.get_rect(center=(WINDOW_WIDTH // 2, 200))
-        self.screen.blit(mode_title, mode_rect)
-        
-        # Human mode option
-        human_bg = pygame.Rect(WINDOW_WIDTH // 2 - 200, 250, 180, 80)
-        pygame.draw.rect(self.screen, JEDI_GREEN, human_bg)
-        pygame.draw.rect(self.screen, CONSOLE_GREEN, human_bg, 3)
-        
-        human_text1 = self.title_font.render("1 - HUMAN", True, SPACE_BLACK)
-        human_text2 = self.console_font.render("Control AT-AT manually", True, SPACE_BLACK)
-        human_rect1 = human_text1.get_rect(center=(human_bg.centerx, human_bg.centery - 10))
-        human_rect2 = human_text2.get_rect(center=(human_bg.centerx, human_bg.centery + 15))
-        self.screen.blit(human_text1, human_rect1)
-        self.screen.blit(human_text2, human_rect2)
-        
-        # AI mode option
-        ai_bg = pygame.Rect(WINDOW_WIDTH // 2 + 20, 250, 180, 80)
-        pygame.draw.rect(self.screen, EMPIRE_RED, ai_bg)
-        pygame.draw.rect(self.screen, (150, 0, 0), ai_bg, 3)
-        
-        ai_text1 = self.title_font.render("2 - AI", True, HOTH_WHITE)
-        ai_text2 = self.console_font.render("Watch algorithms solve", True, HOTH_WHITE)
-        ai_rect1 = ai_text1.get_rect(center=(ai_bg.centerx, ai_bg.centery - 10))
-        ai_rect2 = ai_text2.get_rect(center=(ai_bg.centerx, ai_bg.centery + 15))
-        self.screen.blit(ai_text1, ai_rect1)
-        self.screen.blit(ai_text2, ai_rect2)
-        
-        # Instructions
-        instructions = [
+        self.screen.blit(subtitle, subtitle.get_rect(center=(WINDOW_WIDTH//2, 140)))
+        mode = self.title_font.render("SELECT GAME MODE:", True, REBEL_ORANGE)
+        self.screen.blit(mode, mode.get_rect(center=(WINDOW_WIDTH//2, 200)))
+        for txt, xoff, col1, col2 in (("1 - HUMAN", -200, JEDI_GREEN, CONSOLE_GREEN),
+                                      ("2 - AI", 20, EMPIRE_RED, (150,0,0))):
+            bg = pygame.Rect(WINDOW_WIDTH//2 + xoff, 250, 180, 80)
+            pygame.draw.rect(self.screen, col1, bg); pygame.draw.rect(self.screen, col2, bg, 3)
+            t = self.title_font.render(txt, True, HOTH_WHITE if "AI" in txt else SPACE_BLACK)
+            self.screen.blit(t, t.get_rect(center=(bg.centerx, bg.centery)))
+        lines = [
             "MISSION: Collect the golden key, then reach Echo Base",
-            "Use WASD or Arrow keys to move your AT-AT",
-            "Remember: You slide on ice until you hit a wall!",
-            "",
+            "Use WASD or Arrow keys to move (you slide on ice!)",
             "Press 1 for Human Mode  |  Press 2 for AI Mode",
             "Press ESC to quit"
         ]
-        
-        for i, instruction in enumerate(instructions):
-            color = HOTH_WHITE if instruction else SPACE_BLACK
-            if "MISSION:" in instruction:
-                color = KEY_GOLD
-            elif "Press" in instruction:
-                color = HOLOGRAM_CYAN
-                
-            text = self.console_font.render(instruction, True, color)
-            text_rect = text.get_rect(center=(WINDOW_WIDTH // 2, 380 + i * 25))
-            self.screen.blit(text, text_rect)
-    
+        for i, L in enumerate(lines):
+            color = KEY_GOLD if L.startswith("MISSION") else (HOLOGRAM_CYAN if "Press" in L else HOTH_WHITE)
+            t = self.console_font.render(L, True, color)
+            self.screen.blit(t, t.get_rect(center=(WINDOW_WIDTH//2, 380 + i*25)))
+
     def draw_completion_screen(self):
-        """Draw the game completion screen"""
-        # Semi-transparent overlay
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
-        overlay.set_alpha(180)
-        overlay.fill(SPACE_BLACK)
-        self.screen.blit(overlay, (0, 0))
-        
-        # Victory message
-        victory_font = pygame.font.Font(None, 64)
-        victory_text = victory_font.render("MISSION COMPLETE!", True, JEDI_GREEN)
-        victory_rect = victory_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 100))
-        self.screen.blit(victory_text, victory_rect)
-        
-        # Success message
-        success_text = self.title_font.render("Welcome to Echo Base, Rebel!", True, CONSOLE_GREEN)
-        success_rect = success_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
-        self.screen.blit(success_text, success_rect)
-        
-        # Options
-        options = [
-            "R or SPACE - Start New Game",
-            "M - Toggle Mode (Human/AI)", 
-            "ESC - Main Menu"
-        ]
-        
-        for i, option in enumerate(options):
-            option_text = self.console_font.render(option, True, HOLOGRAM_CYAN)
-            option_rect = option_text.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + i * 30))
-            self.screen.blit(option_text, option_rect)
-    
+        overlay.set_alpha(180); overlay.fill(SPACE_BLACK); self.screen.blit(overlay, (0,0))
+        victory = pygame.font.Font(None, 64).render("MISSION COMPLETE!", True, JEDI_GREEN)
+        self.screen.blit(victory, victory.get_rect(center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 - 100)))
+        success = self.title_font.render("Welcome to Echo Base, Rebel!", True, CONSOLE_GREEN)
+        self.screen.blit(success, success.get_rect(center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 - 50)))
+        for i, opt in enumerate(("R or SPACE - Start New Game", "ESC - Main Menu")):
+            t = self.console_font.render(opt, True, HOLOGRAM_CYAN)
+            self.screen.blit(t, t.get_rect(center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 + i*30)))
+
+    def draw_game_over(self):
+        overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+        overlay.set_alpha(200); overlay.fill((0,0,0))
+        self.screen.blit(overlay, (0,0))
+        title = pygame.font.Font(None, 64).render("GAME OVER", True, (255,80,80))
+        self.screen.blit(title, title.get_rect(center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 - 80)))
+        msg = self.title_font.render("A patrol found you!", True, HOTH_WHITE)
+        self.screen.blit(msg, msg.get_rect(center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 - 40)))
+        for i, opt in enumerate(("R - Restart level", "ESC - Main menu")):
+            t = self.console_font.render(opt, True, HOLOGRAM_CYAN)
+            self.screen.blit(t, t.get_rect(center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//2 + 20 + 28*i)))
+
     def draw_ui(self):
-        """Simple UI for single level game"""
         ui_x = GRID_WIDTH * CELL_SIZE + 20
         ui_y = 20
-        
-        # UI background
-        ui_bg = pygame.Rect(ui_x - 10, ui_y - 10, 320, WINDOW_HEIGHT - 40)
-        pygame.draw.rect(self.screen, DARK_GRAY, ui_bg)
-        pygame.draw.rect(self.screen, HOLOGRAM_CYAN, ui_bg, 2)
-        
-        # Title
-        title = self.title_font.render("HOTH ICE MAZE", True, HOLOGRAM_CYAN)
+        bg = pygame.Rect(ui_x - 10, ui_y - 10, 320, WINDOW_HEIGHT - 40)
+        pygame.draw.rect(self.screen, DARK_GRAY, bg); pygame.draw.rect(self.screen, HOLOGRAM_CYAN, bg, 2)
+        title = self.title_font.render(f"LEVEL {self.current_level}: {self.maze.get_level_name().upper()}", True, HOLOGRAM_CYAN)
         self.screen.blit(title, (ui_x, ui_y))
-        
-        mission = self.console_font.render("ESCAPE TO ECHO BASE", True, CONSOLE_GREEN)
-        self.screen.blit(mission, (ui_x, ui_y + 35))
-        
+        progress = self.console_font.render(f"PROGRESS: {self.current_level}/{self.max_level}", True, CONSOLE_GREEN)
+        self.screen.blit(progress, (ui_x, ui_y + 35))
         ui_y += 70
-        
-        # Current mode indicator with toggle button
-        mode_bg = pygame.Rect(ui_x - 5, ui_y - 5, 200, 35)
-        mode_color = JEDI_GREEN if self.manual_mode else EMPIRE_RED
-        pygame.draw.rect(self.screen, mode_color, mode_bg)
-        pygame.draw.rect(self.screen, HOTH_WHITE, mode_bg, 2)
-        
-        mode_text = f"MODE: {'HUMAN' if self.manual_mode else 'AI'} (Press M to toggle)"
-        mode_surface = self.console_font.render(mode_text, True, SPACE_BLACK if self.manual_mode else HOTH_WHITE)
-        self.screen.blit(mode_surface, (ui_x, ui_y + 5))
-        ui_y += 50
-        
-        # Mission briefing
-        briefing = [
+
+        lines = [
             "MISSION: Collect key, reach base",
             f"KEY: {'COLLECTED' if self.maze.key_collected else 'FIND THE GOLDEN KEY'}",
             "",
+            "CONTROLS:",
+            "WASD/Arrows - Move pilot",
+            "B - BFS (AI mode)   D - DFS (AI mode)",
+            "A - Autopilot (after scan)",
+            "R - Reset current level",
+            "M - Toggle Human/AI",
+            "ESC - Main menu"
         ]
-        
-        if self.manual_mode:
-            briefing.extend([
-                "HUMAN CONTROLS:",
-                "WASD/Arrows - Move AT-AT",
-                "M - Switch to AI mode",
-                "R - Start new game",
-                "T - Show possible moves",
-                "H - Show hints",
-                "ESC - Main menu",
-            ])
-        else:
-            briefing.extend([
-                "AI CONTROLS:",
-                "B - Run BFS (Breadth-First)",
-                "D - Run DFS (Depth-First)",
-                "M - Switch to Human mode", 
-                "R - Start new game",
-                "ESC - Main menu",
-            ])
-        
         if self.current_algorithm:
-            briefing.extend([
-                "",
-                f"SCANNER: {self.current_algorithm}",
-                f"SECTORS: {len(self.search.explored)}",
-                f"STATUS: {'ROUTE FOUND' if self.solution_found else 'SEARCHING...'}",
-            ])
-        
-        # Draw briefing
-        for i, line in enumerate(briefing):
-            if "MISSION:" in line:
-                color = HOLOGRAM_CYAN
+            lines += ["", f"SCANNER: {self.current_algorithm}",
+                      f"SECTORS: {len(self.search.explored)}",
+                      f"STATUS: {'ROUTE FOUND' if self.solution_found else 'SEARCHING...'}"]
+
+        for i, line in enumerate(lines):
+            if "MISSION" in line or "LEVEL" in line:
+                col = HOLOGRAM_CYAN
             elif "KEY:" in line:
-                color = KEY_GOLD if not self.maze.key_collected else JEDI_GREEN
-            elif "CONTROLS:" in line or "SCANNER:" in line:
-                color = REBEL_ORANGE
+                col = KEY_GOLD if not self.maze.key_collected else JEDI_GREEN
+            elif "CONTROLS" in line or "SCANNER" in line:
+                col = REBEL_ORANGE
             elif line.startswith("STATUS:"):
-                color = CONSOLE_GREEN
+                col = CONSOLE_GREEN
             elif line == "":
-                color = SPACE_BLACK
+                col = SPACE_BLACK
             else:
-                color = HOTH_WHITE
-                
-            text = self.console_font.render(line, True, color)
-            self.screen.blit(text, (ui_x, ui_y + i * 22))
-        
-        # Win condition
-        if self.manual_mode and self.maze.can_exit(self.player_pos):
-            win_bg = pygame.Rect(ui_x - 5, ui_y + len(briefing) * 22 + 20, 250, 40)
-            pygame.draw.rect(self.screen, JEDI_GREEN, win_bg)
-            pygame.draw.rect(self.screen, CONSOLE_GREEN, win_bg, 3)
-            
-            win_surface = self.title_font.render("MISSION COMPLETE!", True, SPACE_BLACK)
-            self.screen.blit(win_surface, (ui_x, ui_y + len(briefing) * 22 + 30))
-        
-        # Key collection indicator
-        if not self.maze.key_collected:
-            key_indicator_y = ui_y + len(briefing) * 22 + 80
-            key_text = "⚠ FIND THE KEY FIRST!"
-            key_surface = self.console_font.render(key_text, True, KEY_GOLD)
-            
-            alpha = int(128 + 127 * math.sin(math.radians(self.key_glow * 2)))
-            key_surface.set_alpha(alpha)
-            self.screen.blit(key_surface, (ui_x, key_indicator_y))
-        
-        # Scan lines effect
+                col = HOTH_WHITE
+            t = self.console_font.render(line, True, col)
+            self.screen.blit(t, (ui_x, ui_y + i*22))
+
+        # scanlines effect
         for i in range(0, WINDOW_HEIGHT, 4):
             alpha = 20 if (i + self.scan_lines) % 8 < 4 else 10
-            scan_surf = pygame.Surface((WINDOW_WIDTH, 1))
-            scan_surf.set_alpha(alpha)
-            scan_surf.fill(HOLOGRAM_CYAN)
-            self.screen.blit(scan_surf, (0, i))
-    
+            s = pygame.Surface((WINDOW_WIDTH, 1)); s.set_alpha(alpha); s.fill(HOLOGRAM_CYAN)
+            self.screen.blit(s, (0, i))
+
+        if self.game_over:
+            self.draw_game_over()
+        elif self.game_completed:
+            self.draw_completion_screen()
+
     def draw(self):
-        """Main drawing function"""
         if self.show_start_screen:
             self.draw_start_screen()
         else:
             self.draw_grid()
             self.draw_entities()
             self.draw_ui()
-            
-            # Draw completion screen overlay if game is complete
-            if self.game_completed:
-                self.draw_completion_screen()
-                
         pygame.display.flip()
-    
+
+    # ---------- Loop ----------
     def run(self):
-        """Main game loop"""
         running = True
         while running:
             running = self.handle_events()
             self.update()
             self.draw()
             self.clock.tick(FPS)
-        
-        pygame.quit()
-        sys.exit()
+        pygame.quit(); sys.exit()
 
 if __name__ == "__main__":
     game = StarWarsIceMazeGame()
