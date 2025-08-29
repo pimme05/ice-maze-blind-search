@@ -339,14 +339,6 @@ class StarWarsIceMazeGame:
         self.autopilot_speed = 0.15
         self._auto_last_step = 0.0
 
-        # HINT (breadcrumbs)
-        self.hint_available = True     # once per level
-        self.hint_active = False
-        self.hint_positions = []
-        self.hint_start_time = 0.0
-        self.hint_duration = 2.5       # seconds
-        self.hint_stride = 3           # every N steps along path
-
         # Visual effects
         self.glow_effect = 0
         self.scan_lines = 0
@@ -410,7 +402,6 @@ class StarWarsIceMazeGame:
         self.game_over = True
         self.animating = False
         self.autopilot = False
-        self.hint_active = False
         print("❌ Game Over: a patrol caught you!")
 
     # ---------- Level helpers ----------
@@ -447,11 +438,6 @@ class StarWarsIceMazeGame:
         self.autopilot = False
         self.autopath = []
         self.auto_index = 0
-        # reset hint for the new level
-        self.hint_available = True
-        self.hint_active = False
-        self.hint_positions = []
-        self.hint_start_time = 0.0
 
     # ---------- Input ----------
     def handle_events(self):
@@ -501,17 +487,8 @@ class StarWarsIceMazeGame:
                     elif event.key in (pygame.K_RIGHT, pygame.K_d):
                         new_pos = self.maze.slide_move(*self.player_pos, 'right')
 
-                    # HINT: pressing H in Human mode (once per level), only if path exists
-                    if event.key == pygame.K_h:
-                        self._try_show_hint()
-                        return True
-
                     if new_pos:
                         self.player_pos = new_pos
-                        # moving cancels any active breadcrumbs
-                        if self.hint_active:
-                            self.hint_active = False
-                            self.hint_positions = []
 
                         # collide with enemy after moving (human only)
                         for e in self.enemies:
@@ -542,13 +519,12 @@ class StarWarsIceMazeGame:
 
                 # Works in both modes
                 if event.key == pygame.K_r:
-                    self.load_new_level()  # mode preserved; search + hint state reset
+                    self.load_new_level()  # mode preserved; search state reset
                 elif event.key == pygame.K_m:
                     # toggle Human/AI (cancels autopilot/scan animation)
                     self.manual_mode = not self.manual_mode
                     self.animating = False
                     self.autopilot = False
-                    self.hint_active = False
                     if self.manual_mode:
                         # clear search viz if returning to Human
                         self.search.reset()
@@ -557,31 +533,6 @@ class StarWarsIceMazeGame:
                     self.start_new_game()
 
         return True
-
-    # ---------- Hint ----------
-    def _try_show_hint(self):
-        if not self.hint_available:
-            print("Hint already used on this level.")
-            return
-        if not self.solution_found or not self.search.path:
-            print("Run BFS/DFS in AI mode first to generate a path, then use the hint.")
-            return
-        # build breadcrumb positions every N steps, skip start & goal
-        pts = []
-        for i in range(self.hint_stride, len(self.search.path)-1, self.hint_stride):
-            p = self.search.path[i]
-            if p not in (self.maze.start_pos, self.maze.goal_pos):
-                pts.append(p)
-        if not pts:
-            # fallback: show midpoints if path is short
-            mid = len(self.search.path)//2
-            if 0 < mid < len(self.search.path)-1:
-                pts = [self.search.path[mid]]
-        self.hint_positions = pts
-        self.hint_start_time = time.time()
-        self.hint_active = True
-        self.hint_available = False
-        print("Hint shown: breadcrumbs active for a moment.")
 
     # ---------- Search triggers ----------
     def start_bfs(self):
@@ -622,11 +573,6 @@ class StarWarsIceMazeGame:
                 self.last_step_time = current_time
             else:
                 self.animating = False  # finished scanning
-
-        # hint timeout
-        if self.hint_active and (current_time - self.hint_start_time) > self.hint_duration:
-            self.hint_active = False
-            self.hint_positions = []
 
         # Autopilot stepping
         if self.autopilot and (current_time - self._auto_last_step) > self.autopilot_speed:
@@ -699,24 +645,6 @@ class StarWarsIceMazeGame:
         pygame.draw.circle(self.screen, (180, 30, 30), (cx, cy), CELL_SIZE // 3)
         pygame.draw.circle(self.screen, (255, 80, 80), (cx, cy), CELL_SIZE // 3, 2)
 
-    def draw_hint_breadcrumbs(self):
-        if not self.hint_active or not self.hint_positions:
-            return
-        # fade based on remaining time
-        elapsed = time.time() - self.hint_start_time
-        remain = max(0.0, self.hint_duration - elapsed)
-        alpha = int(60 + 140 * (remain / self.hint_duration))  # 60..200
-        for (hx, hy) in self.hint_positions:
-            cx = hx * CELL_SIZE + CELL_SIZE // 2
-            cy = hy * CELL_SIZE + CELL_SIZE // 2
-            r = CELL_SIZE // 6
-            surf = pygame.Surface((r*2+4, r*2+4), pygame.SRCALPHA)
-            glow = pygame.Surface((r*2+4, r*2+4), pygame.SRCALPHA)
-            pygame.draw.circle(glow, (0, 255, 255, max(20, alpha//3)), (r+2, r+2), r+3)
-            pygame.draw.circle(surf, (0, 255, 255, alpha), (r+2, r+2), r)
-            self.screen.blit(glow, glow.get_rect(center=(cx, cy)))
-            self.screen.blit(surf, surf.get_rect(center=(cx, cy)))
-
     def draw_grid(self):
         self.screen.fill(SPACE_BLACK)
         random.seed(42 + self.current_level)
@@ -755,10 +683,6 @@ class StarWarsIceMazeGame:
                 s.set_alpha(128); s.fill(JEDI_GREEN)
                 self.screen.blit(s, (pos[0]*CELL_SIZE + 15, pos[1]*CELL_SIZE + 15))
 
-        # HINT breadcrumbs (Human mode)
-        if self.manual_mode:
-            self.draw_hint_breadcrumbs()
-
     def draw_entities(self):
         self.draw_key(self.maze.key_pos)
         self.draw_character(self.maze.goal_pos, "base")
@@ -769,9 +693,41 @@ class StarWarsIceMazeGame:
         if self.manual_mode or self.autopilot:
             self.draw_character(self.player_pos, "rebel")
         else:
-            # AI scan mode: keep a “ghost” at start of the computed path for clarity
-            pos = self.search.path[0] if self.search.path else self.maze.start_pos
+            # AI scan mode: show the rebel where you LAST were in human mode
+            pos = self.search.path[0] if self.search.path else self.player_pos
             self.draw_character(pos, "rebel")
+
+    # ---------- UI helpers (wrap & fit) ----------
+    def _blit_wrapped(self, text, font, color, x, y, max_width, line_gap=2):
+        """Render text with soft-wrapping inside max_width. Returns new y after drawing."""
+        words = text.split(' ')
+        line = ""
+        for w in words:
+            test = (line + " " + w).strip()
+            if font.size(test)[0] <= max_width:
+                line = test
+            else:
+                surf = font.render(line, True, color)
+                self.screen.blit(surf, (x, y))
+                y += surf.get_height() + line_gap
+                line = w
+        if line:
+            surf = font.render(line, True, color)
+            self.screen.blit(surf, (x, y))
+            y += surf.get_height() + line_gap
+        return y
+
+    def _render_title_fit(self, text, base_size, color, max_width):
+        """Return a surface for title text that is scaled down to fit max_width."""
+        size = base_size
+        while size >= 16:
+            f = pygame.font.Font(None, size)
+            surf = f.render(text, True, color)
+            if surf.get_width() <= max_width:
+                return surf
+            size -= 2
+        # fallback smallest
+        return pygame.font.Font(None, 16).render(text, True, color)
 
     def draw_start_screen(self):
         self.screen.fill(SPACE_BLACK)
@@ -828,13 +784,20 @@ class StarWarsIceMazeGame:
     def draw_ui(self):
         ui_x = GRID_WIDTH * CELL_SIZE + 20
         ui_y = 20
-        bg = pygame.Rect(ui_x - 10, ui_y - 10, 320, WINDOW_HEIGHT - 40)
+        panel_w = 320
+        bg = pygame.Rect(ui_x - 10, ui_y - 10, panel_w, WINDOW_HEIGHT - 40)
         pygame.draw.rect(self.screen, DARK_GRAY, bg); pygame.draw.rect(self.screen, HOLOGRAM_CYAN, bg, 2)
-        title = self.title_font.render(f"LEVEL {self.current_level}: {self.maze.get_level_name().upper()}", True, HOLOGRAM_CYAN)
-        self.screen.blit(title, (ui_x, ui_y))
+
+        # Title that always fits the panel
+        title_text = f"LEVEL {self.current_level}: {self.maze.get_level_name().upper()}"
+        title_surf = self._render_title_fit(title_text, 32, HOLOGRAM_CYAN, max_width=panel_w - 40)
+        self.screen.blit(title_surf, (ui_x, ui_y))
+        ui_y += title_surf.get_height() + 6
+
+        # Progress
         progress = self.console_font.render(f"PROGRESS: {self.current_level}/{self.max_level}", True, CONSOLE_GREEN)
-        self.screen.blit(progress, (ui_x, ui_y + 35))
-        ui_y += 70
+        self.screen.blit(progress, (ui_x, ui_y))
+        ui_y += 35
 
         # Mode-specific control list
         lines = [
@@ -844,11 +807,8 @@ class StarWarsIceMazeGame:
             "CONTROLS:",
         ]
         if self.manual_mode:
-            # Show hint availability in Human mode
-            hint_label = "H - Hint (1 left)" if self.hint_available else "H - Hint (used)"
             lines += [
                 "WASD/Arrows - Move pilot",
-                hint_label,
                 "R - Reset current level",
                 "M - Toggle Human/AI",
                 "ESC - Main menu",
@@ -870,23 +830,23 @@ class StarWarsIceMazeGame:
                 f"STATUS: {'ROUTE FOUND' if self.solution_found else 'SEARCHING...'}",
             ]
 
-        for i, line in enumerate(lines):
+        # Wrap lines to avoid overflow
+        max_text_w = panel_w - 40
+        for line in lines:
+            if line == "":
+                ui_y += 8
+                continue
             if "MISSION" in line or "LEVEL" in line:
                 col = HOLOGRAM_CYAN
             elif "KEY:" in line:
                 col = KEY_GOLD if not self.maze.key_collected else JEDI_GREEN
             elif "CONTROLS" in line or "SCANNER" in line:
                 col = REBEL_ORANGE
-            elif "Hint (used)" in line:
-                col = (120, 120, 120)
             elif line.startswith("STATUS:"):
                 col = CONSOLE_GREEN
-            elif line == "":
-                col = SPACE_BLACK
             else:
                 col = HOTH_WHITE
-            t = self.console_font.render(line, True, col)
-            self.screen.blit(t, (ui_x, ui_y + i*22))
+            ui_y = self._blit_wrapped(line, self.console_font, col, ui_x, ui_y, max_text_w, line_gap=2)
 
         # scanlines effect
         for i in range(0, WINDOW_HEIGHT, 4):
