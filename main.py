@@ -12,8 +12,9 @@ pygame.init()
 # ---------------------------
 # Constants / Colors
 # ---------------------------
-GRID_WIDTH = 12
-GRID_HEIGHT = 9
+# Use larger grid so levels 4-5 fit; earlier levels just draw inside this area.
+GRID_WIDTH = 16
+GRID_HEIGHT = 10
 CELL_SIZE = 60
 WINDOW_WIDTH = GRID_WIDTH * CELL_SIZE + 350
 WINDOW_HEIGHT = GRID_HEIGHT * CELL_SIZE + 100
@@ -37,7 +38,7 @@ KEY_GOLD = (255, 215, 0)
 # Maze (MULTI-LEVEL)
 # ---------------------------
 class Maze:
-    """Maze with 3 levels and a collectible key each level"""
+    """Maze with 5 levels and a collectible key each level"""
     def __init__(self, level=1):
         self.level = level
         self.key_collected = False
@@ -51,6 +52,7 @@ class Maze:
         self.enemy_spawns = []
 
         if level == 1:
+            # 12 x 9
             self.grid = [
                 [1,1,1,1,1,1,1,1,1,1,1,1],
                 [1,0,0,0,1,0,0,0,0,0,0,1],
@@ -68,7 +70,7 @@ class Maze:
             self.enemy_spawns = []  # no enemies on level 1
 
         elif level == 2:
-            # Harder than level 1, solvable; side trip to key
+            # 12 x 9 — harder than 1; side trip to key
             self.grid = [
                 [1,1,1,1,1,1,1,1,1,1,1,1],
                 [1,0,0,0,1,0,0,0,1,0,0,1],
@@ -83,13 +85,14 @@ class Maze:
             self.start_pos = (1, 1)
             self.goal_pos  = (10, 7)
             self.key_pos   = (9, 2)
-            # (x, y, dx, dy) patrols that move 1 tile a step, bouncing at walls
+            # (x, y, dx, dy) patrols (move 1 tile, bounce)
             self.enemy_spawns = [
                 (2, 7, 1, 0),   # bottom corridor
-                (5, 0, 0, 1),   # mid-right vertical shaft
+                (5, 1, 0, 1),   # mid-right vertical shaft
             ]
 
-        else:  # level 3 (hardest)
+        elif level == 3:
+            # 12 x 9 — hardest of small boards
             self.grid = [
                 [1,1,1,1,1,1,1,1,1,1,1,1],
                 [1,0,0,1,0,0,0,1,1,0,0,1],
@@ -108,6 +111,53 @@ class Maze:
                 (3, 3, 1, 0),
                 (9, 6, 0, -1),
                 (6, 5, -1, 0),
+            ]
+
+        elif level == 4:
+            # 16 x 10 — bigger & tougher, still fair
+            self.grid = [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+                [1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1],
+                [1,0,0,1,0,0,0,1,0,0,0,0,1,0,0,1],
+                [1,1,0,1,1,1,0,1,0,1,1,0,1,0,1,1],
+                [1,0,0,0,0,0,0,1,0,0,0,0,1,0,0,1],
+                [1,0,1,1,0,1,0,1,1,1,0,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,0,1,1,1,1,1,1,0,1,1,1,1,1,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            ]
+            self.start_pos = (1, 1)
+            self.goal_pos  = (14, 8)
+            self.key_pos   = (1, 5)
+            self.enemy_spawns = [
+                (3, 7, 1, 0),   # long bottom-ish lane
+                (12, 2, 0, 1),  # right column up↕down
+                (7, 5, -1, 0),  # middle lane
+            ]
+
+        else:  # level 5 — biggest and hardest
+            # 16 x 10
+            self.grid = [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1],
+                [1,0,1,0,1,0,1,1,0,1,0,1,1,1,0,1],
+                [1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,1],
+                [1,0,1,1,1,1,0,1,1,1,1,0,1,0,1,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
+                [1,1,1,0,1,1,1,1,0,1,1,0,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,0,1,1,1,1,1,1,0,1,1,1,1,1,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            ]
+            self.start_pos = (1, 8)
+            self.goal_pos  = (14, 1)
+            self.key_pos   = (6, 3)
+            self.enemy_spawns = [
+                (4, 5, 1, 0),
+                (10, 3, 0, 1),
+                (13, 7, -1, 0),
+                (8, 1, 0, 1),
             ]
 
         self.terrain_type = "ice"
@@ -129,7 +179,7 @@ class Maze:
             if self.is_wall(nx, ny): break
             x, y = nx, ny
             moves += 1
-            if moves > 20: break
+            if moves > 50: break
         return (x, y) if (x, y) != (start_x, start_y) else None
 
     def collect_key(self, player_pos):
@@ -142,7 +192,13 @@ class Maze:
         return self.key_collected and player_pos == self.goal_pos
 
     def get_level_name(self):
-        return {1:"Hoth Landing Site", 2:"Ice Caverns", 3:"Echo Base Approach"}[self.level]
+        return {
+            1:"Hoth Landing Site",
+            2:"Ice Caverns",
+            3:"Echo Base Approach",
+            4:"Frozen Wastes",
+            5:"Shield Generator Run",
+        }[self.level]
 
 # ---------------------------
 # Blind search (BFS/DFS)
@@ -248,7 +304,7 @@ class StarWarsIceMazeGame:
 
         # Level state
         self.current_level = 1
-        self.max_level = 3
+        self.max_level = 5
 
         # Images
         self.images = self.load_images()
@@ -282,6 +338,14 @@ class StarWarsIceMazeGame:
         self.auto_index = 0
         self.autopilot_speed = 0.15
         self._auto_last_step = 0.0
+
+        # HINT (breadcrumbs)
+        self.hint_available = True     # once per level
+        self.hint_active = False
+        self.hint_positions = []
+        self.hint_start_time = 0.0
+        self.hint_duration = 2.5       # seconds
+        self.hint_stride = 3           # every N steps along path
 
         # Visual effects
         self.glow_effect = 0
@@ -346,6 +410,7 @@ class StarWarsIceMazeGame:
         self.game_over = True
         self.animating = False
         self.autopilot = False
+        self.hint_active = False
         print("❌ Game Over: a patrol caught you!")
 
     # ---------- Level helpers ----------
@@ -377,12 +442,16 @@ class StarWarsIceMazeGame:
         self.current_algorithm = None
         self.visualization_step = 0
         self.animating = False
-        # DO NOT force manual_mode here; keep whatever the player selected.
         self.solution_found = False
         self.game_over = False
         self.autopilot = False
         self.autopath = []
         self.auto_index = 0
+        # reset hint for the new level
+        self.hint_available = True
+        self.hint_active = False
+        self.hint_positions = []
+        self.hint_start_time = 0.0
 
     # ---------- Input ----------
     def handle_events(self):
@@ -412,7 +481,7 @@ class StarWarsIceMazeGame:
                         self.start_new_game()
                     return True
 
-                # --- End screen (after level 3) ---
+                # --- End screen ---
                 if self.game_completed:
                     if event.key in (pygame.K_r, pygame.K_SPACE):
                         self.start_new_game()
@@ -432,8 +501,17 @@ class StarWarsIceMazeGame:
                     elif event.key in (pygame.K_RIGHT, pygame.K_d):
                         new_pos = self.maze.slide_move(*self.player_pos, 'right')
 
+                    # HINT: pressing H in Human mode (once per level), only if path exists
+                    if event.key == pygame.K_h:
+                        self._try_show_hint()
+                        return True
+
                     if new_pos:
                         self.player_pos = new_pos
+                        # moving cancels any active breadcrumbs
+                        if self.hint_active:
+                            self.hint_active = False
+                            self.hint_positions = []
 
                         # collide with enemy after moving (human only)
                         for e in self.enemies:
@@ -448,27 +526,31 @@ class StarWarsIceMazeGame:
                         if self.maze.can_exit(self.player_pos):
                             self.complete_level()
 
-                # --- Algorithm controls ---
-                if event.key == pygame.K_b and not self.animating and not self.manual_mode:
-                    self.start_bfs()
-                elif event.key == pygame.K_d and not self.animating and not self.manual_mode:
-                    self.start_dfs()
-                elif event.key == pygame.K_a and not self.manual_mode and self.solution_found and not self.autopilot:
-                    # start autopilot along found path
-                    if self.search.path:
-                        self.autopilot = True
-                        self.autopath = list(self.search.path)
-                        self.auto_index = 0
-                        self.player_pos = self.autopath[0]  # place player at start of path
-                        print("Autopilot engaged.")
-                elif event.key == pygame.K_r:
-                    self.load_new_level()  # mode preserved; search state fully reset
+                # --- Algorithm controls (AI mode only) ---
+                if not self.manual_mode:
+                    if event.key == pygame.K_b and not self.animating:
+                        self.start_bfs()
+                    elif event.key == pygame.K_d and not self.animating:
+                        self.start_dfs()
+                    elif event.key == pygame.K_a and self.solution_found and not self.autopilot:
+                        if self.search.path:
+                            self.autopilot = True
+                            self.autopath = list(self.search.path)
+                            self.auto_index = 0
+                            self.player_pos = self.autopath[0]
+                            print("Autopilot engaged.")
+
+                # Works in both modes
+                if event.key == pygame.K_r:
+                    self.load_new_level()  # mode preserved; search + hint state reset
                 elif event.key == pygame.K_m:
                     # toggle Human/AI (cancels autopilot/scan animation)
                     self.manual_mode = not self.manual_mode
                     self.animating = False
                     self.autopilot = False
+                    self.hint_active = False
                     if self.manual_mode:
+                        # clear search viz if returning to Human
                         self.search.reset()
                         self.solution_found = False
                 elif event.key == pygame.K_ESCAPE:
@@ -476,11 +558,36 @@ class StarWarsIceMazeGame:
 
         return True
 
+    # ---------- Hint ----------
+    def _try_show_hint(self):
+        if not self.hint_available:
+            print("Hint already used on this level.")
+            return
+        if not self.solution_found or not self.search.path:
+            print("Run BFS/DFS in AI mode first to generate a path, then use the hint.")
+            return
+        # build breadcrumb positions every N steps, skip start & goal
+        pts = []
+        for i in range(self.hint_stride, len(self.search.path)-1, self.hint_stride):
+            p = self.search.path[i]
+            if p not in (self.maze.start_pos, self.maze.goal_pos):
+                pts.append(p)
+        if not pts:
+            # fallback: show midpoints if path is short
+            mid = len(self.search.path)//2
+            if 0 < mid < len(self.search.path)-1:
+                pts = [self.search.path[mid]]
+        self.hint_positions = pts
+        self.hint_start_time = time.time()
+        self.hint_active = True
+        self.hint_available = False
+        print("Hint shown: breadcrumbs active for a moment.")
+
     # ---------- Search triggers ----------
     def start_bfs(self):
         self.current_algorithm = "REBEL SCANNER (BFS)"
         self.solution_found = self.search.bfs_with_key(
-            start=self.player_pos,                      # start from where you are
+            start=self.player_pos,
             goal=self.maze.goal_pos,
             key_pos=self.maze.key_pos,
             has_key_start=self.maze.key_collected
@@ -516,6 +623,11 @@ class StarWarsIceMazeGame:
             else:
                 self.animating = False  # finished scanning
 
+        # hint timeout
+        if self.hint_active and (current_time - self.hint_start_time) > self.hint_duration:
+            self.hint_active = False
+            self.hint_positions = []
+
         # Autopilot stepping
         if self.autopilot and (current_time - self._auto_last_step) > self.autopilot_speed:
             self._auto_last_step = current_time
@@ -530,7 +642,7 @@ class StarWarsIceMazeGame:
             else:
                 self.autopilot = False
 
-        # step enemies on a timer (they move in all modes; only human can die)
+        # step enemies (they move in all modes; only Human collides)
         self._step_enemies()
 
     def draw_key(self, pos):
@@ -587,16 +699,37 @@ class StarWarsIceMazeGame:
         pygame.draw.circle(self.screen, (180, 30, 30), (cx, cy), CELL_SIZE // 3)
         pygame.draw.circle(self.screen, (255, 80, 80), (cx, cy), CELL_SIZE // 3, 2)
 
+    def draw_hint_breadcrumbs(self):
+        if not self.hint_active or not self.hint_positions:
+            return
+        # fade based on remaining time
+        elapsed = time.time() - self.hint_start_time
+        remain = max(0.0, self.hint_duration - elapsed)
+        alpha = int(60 + 140 * (remain / self.hint_duration))  # 60..200
+        for (hx, hy) in self.hint_positions:
+            cx = hx * CELL_SIZE + CELL_SIZE // 2
+            cy = hy * CELL_SIZE + CELL_SIZE // 2
+            r = CELL_SIZE // 6
+            surf = pygame.Surface((r*2+4, r*2+4), pygame.SRCALPHA)
+            glow = pygame.Surface((r*2+4, r*2+4), pygame.SRCALPHA)
+            pygame.draw.circle(glow, (0, 255, 255, max(20, alpha//3)), (r+2, r+2), r+3)
+            pygame.draw.circle(surf, (0, 255, 255, alpha), (r+2, r+2), r)
+            self.screen.blit(glow, glow.get_rect(center=(cx, cy)))
+            self.screen.blit(surf, surf.get_rect(center=(cx, cy)))
+
     def draw_grid(self):
         self.screen.fill(SPACE_BLACK)
         random.seed(42 + self.current_level)
-        for _ in range(50 + self.current_level * 5):
+        for _ in range(50 + self.current_level * 8):
             x = random.randint(0, GRID_WIDTH * CELL_SIZE)
             y = random.randint(0, GRID_HEIGHT * CELL_SIZE)
             pygame.draw.circle(self.screen, HOTH_WHITE, (x, y), 1)
 
-        for y in range(len(self.maze.grid)):
-            for x in range(len(self.maze.grid[0])):
+        # draw maze area only (actual size is len(grid))
+        rows = len(self.maze.grid)
+        cols = len(self.maze.grid[0])
+        for y in range(rows):
+            for x in range(cols):
                 r = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
                 if self.maze.is_wall(x, y):
                     pygame.draw.rect(self.screen, WALL_GRAY, r)
@@ -614,13 +747,17 @@ class StarWarsIceMazeGame:
                 s.set_alpha(80); s.fill(color)
                 self.screen.blit(s, (pos[0]*CELL_SIZE + 5, pos[1]*CELL_SIZE + 5))
 
-        # Solution path
+        # Solution path (only in AI mode)
         if not self.manual_mode and not self.animating and self.solution_found and self.search.path:
             for pos in self.search.path:
                 if pos in (self.maze.start_pos, self.maze.goal_pos): continue
                 s = pygame.Surface((CELL_SIZE - 30, CELL_SIZE - 30))
                 s.set_alpha(128); s.fill(JEDI_GREEN)
                 self.screen.blit(s, (pos[0]*CELL_SIZE + 15, pos[1]*CELL_SIZE + 15))
+
+        # HINT breadcrumbs (Human mode)
+        if self.manual_mode:
+            self.draw_hint_breadcrumbs()
 
     def draw_entities(self):
         self.draw_key(self.maze.key_pos)
@@ -707,8 +844,11 @@ class StarWarsIceMazeGame:
             "CONTROLS:",
         ]
         if self.manual_mode:
+            # Show hint availability in Human mode
+            hint_label = "H - Hint (1 left)" if self.hint_available else "H - Hint (used)"
             lines += [
                 "WASD/Arrows - Move pilot",
+                hint_label,
                 "R - Reset current level",
                 "M - Toggle Human/AI",
                 "ESC - Main menu",
@@ -737,6 +877,8 @@ class StarWarsIceMazeGame:
                 col = KEY_GOLD if not self.maze.key_collected else JEDI_GREEN
             elif "CONTROLS" in line or "SCANNER" in line:
                 col = REBEL_ORANGE
+            elif "Hint (used)" in line:
+                col = (120, 120, 120)
             elif line.startswith("STATUS:"):
                 col = CONSOLE_GREEN
             elif line == "":
