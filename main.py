@@ -86,7 +86,7 @@ class Maze:
             # (x, y, dx, dy) patrols that move 1 tile a step, bouncing at walls
             self.enemy_spawns = [
                 (2, 7, 1, 0),   # bottom corridor
-                (8, 3, 0, 1),   # mid-right vertical shaft
+                (5, 0, 0, 1),   # mid-right vertical shaft
             ]
 
         else:  # level 3 (hardest)
@@ -311,8 +311,8 @@ class StarWarsIceMazeGame:
         self.game_over = False
 
     def _step_enemies(self):
-        # freeze enemies during AI scanning or autopilot
-        if not self.enemies or self.game_completed or self.game_over or not self.manual_mode or self.autopilot:
+        # Enemies always move; collisions only matter in HUMAN mode.
+        if not self.enemies or self.game_completed or self.game_over:
             return
         now = time.time()
         if now - self._enemy_last_step < self.enemy_step_interval:
@@ -338,7 +338,7 @@ class StarWarsIceMazeGame:
 
             e["x"], e["y"] = nx, ny
 
-            # collision with player (manual only)
+            # collision with player only in HUMAN mode
             if self.manual_mode and (e["x"], e["y"]) == self.player_pos:
                 self._trigger_game_over()
 
@@ -377,7 +377,7 @@ class StarWarsIceMazeGame:
         self.current_algorithm = None
         self.visualization_step = 0
         self.animating = False
-        self.manual_mode = True
+        # DO NOT force manual_mode here; keep whatever the player selected.
         self.solution_found = False
         self.game_over = False
         self.autopilot = False
@@ -407,7 +407,7 @@ class StarWarsIceMazeGame:
                 # --- Game over screen ---
                 if self.game_over:
                     if event.key in (pygame.K_r, pygame.K_SPACE):
-                        self.load_new_level()  # restart same level
+                        self.load_new_level()  # restart same level (mode preserved)
                     elif event.key == pygame.K_ESCAPE:
                         self.start_new_game()
                     return True
@@ -435,7 +435,7 @@ class StarWarsIceMazeGame:
                     if new_pos:
                         self.player_pos = new_pos
 
-                        # collide with enemy after moving
+                        # collide with enemy after moving (human only)
                         for e in self.enemies:
                             if (e["x"], e["y"]) == self.player_pos:
                                 self._trigger_game_over()
@@ -462,7 +462,7 @@ class StarWarsIceMazeGame:
                         self.player_pos = self.autopath[0]  # place player at start of path
                         print("Autopilot engaged.")
                 elif event.key == pygame.K_r:
-                    self.load_new_level()
+                    self.load_new_level()  # mode preserved; search state fully reset
                 elif event.key == pygame.K_m:
                     # toggle Human/AI (cancels autopilot/scan animation)
                     self.manual_mode = not self.manual_mode
@@ -470,6 +470,7 @@ class StarWarsIceMazeGame:
                     self.autopilot = False
                     if self.manual_mode:
                         self.search.reset()
+                        self.solution_found = False
                 elif event.key == pygame.K_ESCAPE:
                     self.start_new_game()
 
@@ -529,7 +530,7 @@ class StarWarsIceMazeGame:
             else:
                 self.autopilot = False
 
-        # step enemies on a timer (frozen in AI or autopilot)
+        # step enemies on a timer (they move in all modes; only human can die)
         self._step_enemies()
 
     def draw_key(self, pos):
@@ -651,7 +652,7 @@ class StarWarsIceMazeGame:
                                       ("2 - AI", 20, EMPIRE_RED, (150,0,0))):
             bg = pygame.Rect(WINDOW_WIDTH//2 + xoff, 250, 180, 80)
             pygame.draw.rect(self.screen, col1, bg); pygame.draw.rect(self.screen, col2, bg, 3)
-            t = self.title_font.render(txt, True, HOTH_WHITE if "AI" in txt else SPACE_BLACK)
+            t = pygame.font.Font(None, 32).render(txt, True, HOTH_WHITE if "AI" in txt else SPACE_BLACK)
             self.screen.blit(t, t.get_rect(center=(bg.centerx, bg.centery)))
         lines = [
             "MISSION: Collect the golden key, then reach Echo Base",
@@ -698,22 +699,36 @@ class StarWarsIceMazeGame:
         self.screen.blit(progress, (ui_x, ui_y + 35))
         ui_y += 70
 
+        # Mode-specific control list
         lines = [
             "MISSION: Collect key, reach base",
             f"KEY: {'COLLECTED' if self.maze.key_collected else 'FIND THE GOLDEN KEY'}",
             "",
             "CONTROLS:",
-            "WASD/Arrows - Move pilot",
-            "B - BFS (AI mode)   D - DFS (AI mode)",
-            "A - Autopilot (after scan)",
-            "R - Reset current level",
-            "M - Toggle Human/AI",
-            "ESC - Main menu"
         ]
-        if self.current_algorithm:
-            lines += ["", f"SCANNER: {self.current_algorithm}",
-                      f"SECTORS: {len(self.search.explored)}",
-                      f"STATUS: {'ROUTE FOUND' if self.solution_found else 'SEARCHING...'}"]
+        if self.manual_mode:
+            lines += [
+                "WASD/Arrows - Move pilot",
+                "R - Reset current level",
+                "M - Toggle Human/AI",
+                "ESC - Main menu",
+            ]
+        else:
+            lines += [
+                "B - BFS (AI mode)   D - DFS (AI mode)",
+                "A - Autopilot (after scan)",
+                "R - Reset current level",
+                "M - Toggle Human/AI",
+                "ESC - Main menu",
+            ]
+
+        if self.current_algorithm and not self.manual_mode:
+            lines += [
+                "",
+                f"SCANNER: {self.current_algorithm}",
+                f"SECTORS: {len(self.search.explored)}",
+                f"STATUS: {'ROUTE FOUND' if self.solution_found else 'SEARCHING...'}",
+            ]
 
         for i, line in enumerate(lines):
             if "MISSION" in line or "LEVEL" in line:
