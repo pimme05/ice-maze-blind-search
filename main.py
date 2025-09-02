@@ -322,6 +322,7 @@ class StarWarsIceMazeGame:
         self.animation_speed = 8
         self.last_step_time = 0
         self.solution_found = False
+        self.drawn_path = False
         self.game_completed = False
         self.show_start_screen = True
 
@@ -434,6 +435,7 @@ class StarWarsIceMazeGame:
         self.visualization_step = 0
         self.animating = False
         self.solution_found = False
+        self.drawn_path = False
         self.game_over = False
         self.autopilot = False
         self.autopath = []
@@ -509,7 +511,7 @@ class StarWarsIceMazeGame:
                         self.start_bfs()
                     elif event.key == pygame.K_d and not self.animating:
                         self.start_dfs()
-                    elif event.key == pygame.K_a and self.solution_found and not self.autopilot:
+                    elif event.key == pygame.K_a and self.solution_found and not self.autopilot and self.drawn_path:
                         if self.search.path:
                             self.autopilot = True
                             self.autopath = list(self.search.path)
@@ -575,21 +577,55 @@ class StarWarsIceMazeGame:
                 self.animating = False  # finished scanning
 
         # Autopilot stepping
+        player_blocked = False
+
         if self.autopilot and (current_time - self._auto_last_step) > self.autopilot_speed:
             self._auto_last_step = current_time
             if self.auto_index + 1 < len(self.autopath):
-                self.auto_index += 1
-                self.player_pos = self.autopath[self.auto_index]
-                # collect key/exit along the way
-                self.maze.collect_key(self.player_pos)
-                if self.maze.can_exit(self.player_pos):
-                    self.autopilot = False
-                    self.complete_level()
+                # check if enemy is currently there OR could move there next step
+                for e in self.enemies:
+                    # predict where enemy will move
+                    next_x = e["x"] + e["dx"]
+                    next_y = e["y"] + e["dy"]
+
+                    # if that tile is a wall, enemy will bounce back
+                    if self.maze.is_wall(next_x, next_y):
+                        next_x = e["x"] - e["dx"]
+                        next_y = e["y"] - e["dy"]
+
+                    # block if enemy is currently there OR will move there next step
+                    if (e["x"], e["y"]) == self.autopath[self.auto_index+1] \
+                    or (next_x, next_y) == self.autopath[self.auto_index+1]:
+                        print("Enemy will block the next tile")
+                        player_blocked = True
+                        break
+
+
+
+                if not player_blocked:
+                    self.auto_index += 1
+                    self.player_pos = self.autopath[self.auto_index]
+                    self.maze.collect_key(self.player_pos)
+                    if self.maze.can_exit(self.player_pos):
+                        self.autopilot = False
+                        self.complete_level()
             else:
                 self.autopilot = False
 
         # step enemies (they move in all modes; only Human collides)
-        self._step_enemies()
+        if not self.animating:
+            self._step_enemies()
+
+        # ✅ universal collision check (after player + enemies)
+        if not player_blocked and self.autopilot:  # player didn’t move, but still needs collision check
+            for e in self.enemies:
+                if (e["x"], e["y"]) == self.player_pos:
+                    self._trigger_game_over()
+                    break
+
+        if self.game_over:
+            return True
+
 
     def draw_key(self, pos):
         if self.maze.key_collected:
@@ -682,6 +718,7 @@ class StarWarsIceMazeGame:
                 s = pygame.Surface((CELL_SIZE - 30, CELL_SIZE - 30))
                 s.set_alpha(128); s.fill(JEDI_GREEN)
                 self.screen.blit(s, (pos[0]*CELL_SIZE + 15, pos[1]*CELL_SIZE + 15))
+            self.drawn_path = True
 
     def draw_entities(self):
         self.draw_key(self.maze.key_pos)
