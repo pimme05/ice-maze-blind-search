@@ -8,7 +8,9 @@ import random
 
 # Initialize Pygame
 pygame.init()
-
+pygame.mixer.init()
+pygame.mixer.music.load("game_theme.mp3")  # replace with your mp3 filename
+pygame.mixer.music.play(-1)  # -1 makes it loop indefinitely, use 0 to play once
 # ---------------------------
 # Constants / Colors
 # ---------------------------
@@ -918,3 +920,5 @@ class StarWarsIceMazeGame:
 if __name__ == "__main__":
     game = StarWarsIceMazeGame()
     game.run()
+
+
